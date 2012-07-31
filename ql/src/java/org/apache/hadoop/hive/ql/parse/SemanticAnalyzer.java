@@ -25,9 +25,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -7506,6 +7508,85 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return ctx_1;
   }
 
+  // BFS of the Parse Tree
+  private ASTNode findJOIN(ASTNode n){
+    Queue <ASTNode> q = new LinkedList<ASTNode>();
+    q.add(n);
+    ASTNode res =null;
+    ASTNode child =null;
+    while (!q.isEmpty()){
+      child = q.poll();
+      if (isJoinToken(child))
+      {
+        res = child;
+        break;
+      }
+
+      int child_count = child.getChildCount();
+      for (int child_pos = 0; child_pos < child_count; ++child_pos) {
+        q.add((ASTNode)child.getChild(child_pos));
+      }
+    }
+    return child;
+  }
+
+  // BFS of the Parse Tree
+  private ASTNode findWHERE(ASTNode n){
+    Queue <ASTNode> q = new LinkedList<ASTNode>();
+    q.add(n);
+    ASTNode child =null;
+    ASTNode res =null;
+
+    while (!q.isEmpty()){
+      child = q.poll();
+      if (child.getToken().getType()==HiveParser.TOK_WHERE)
+      {
+        res = child;
+        break;
+      }
+
+      int child_count = child.getChildCount();
+      for (int child_pos = 0; child_pos < child_count; ++child_pos) {
+        q.add((ASTNode)child.getChild(child_pos));
+      }
+    }
+    return child;
+  }
+
+  // BFS of the Parse Tree
+  private ASTNode findINSERT(ASTNode n){
+    Queue <ASTNode> q = new LinkedList<ASTNode>();
+    q.add(n);
+    ASTNode child =null;
+    ASTNode res =null;
+
+    while (!q.isEmpty()){
+      child = q.poll();
+      if (child.getToken().getType()==HiveParser.TOK_INSERT)
+      {
+        res = child;
+        break;
+      }
+
+      int child_count = child.getChildCount();
+      for (int child_pos = 0; child_pos < child_count; ++child_pos) {
+        q.add((ASTNode)child.getChild(child_pos));
+      }
+    }
+    return child;
+  }
+
+  private boolean analyzeSpatial (ASTNode root){
+    LOG.info("Starting Spatial Semantic Analysis");
+    ASTNode join =findJOIN(root);
+    ASTNode where =findWHERE(root);
+    ASTNode insert =findINSERT(root);
+
+    // TODO:
+
+    return false;
+  }
+
   @Override
   @SuppressWarnings("nls")
   public void analyzeInternal(ASTNode ast) throws SemanticException {
@@ -7551,6 +7632,18 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     getMetaData(qb);
     LOG.info("Completed getting MetaData in Semantic Analysis");
+
+    // I just wanted to see the AST string here .
+    LOG.info(child.dump());
+
+    // Massage the tree for Spatial Join
+    if (!analyzeSpatial(child)) {
+      LOG.info("No Spatial Stuff to Analyze");
+    }
+    LOG.info("Completed Spatial-Join Analysis");
+
+    // I want to see what I did to the tree
+    LOG.info(child.dump());
 
     // Save the result schema derived from the sink operator produced
     // by genPlan.  This has the correct column names, which clients

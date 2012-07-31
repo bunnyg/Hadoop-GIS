@@ -28,6 +28,6 @@ public class HiveSpatialIndexInputFormat extends HiveIndexedInputFormat {
     LogFactory.getLog(HiveSpatialIndexInputFormat.class.getSimpleName());
 
   public HiveSpatialIndexInputFormat() {
-    super("hive.index.compact.file");
+    super("hive.spatial.compact.file");
   }
 }

@@ -436,7 +436,9 @@ public class Driver implements CommandProcessor {
         sem.analyze(tree, ctx);
       }
 
+      LOG.info(""+sem.getClass().getName());
       LOG.info("Semantic Analysis Completed");
+
 
       // validate the plan
       sem.validate();
