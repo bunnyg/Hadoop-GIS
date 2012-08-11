@@ -35,6 +35,7 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import org.antlr.runtime.CommonToken;
 import org.antlr.runtime.tree.Tree;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.ContentSummary;
@@ -182,6 +183,8 @@ import org.apache.hadoop.mapred.InputFormat;
  */
 
 public class SemanticAnalyzer extends BaseSemanticAnalyzer {
+  private boolean hasSpatialJoin ;
+
   private HashMap<TableScanOperator, ExprNodeDesc> opToPartPruner;
   private HashMap<TableScanOperator, PrunedPartitionList> opToPartList;
   private HashMap<String, Operator<? extends Serializable>> topOps;
@@ -309,6 +312,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     opParseCtx.clear();
     groupOpToInputTables.clear();
     prunedPartitions.clear();
+
+    hasSpatialJoin =false;
   }
 
   public void init(ParseContext pctx) {
@@ -4901,6 +4906,27 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return output;
   }
 
+  private Operator genSPJoinOperatorChildren(QBJoinTree join, Operator left,
+      Operator[] right, HashSet<Integer> omitOpts) throws SemanticException {
+
+    RowResolver outputRS = new RowResolver();
+    ArrayList<String> outputColumnNames = new ArrayList<String>();
+    // all children are base classes
+    Operator<?>[] rightOps = new Operator[right.length];
+    int outputPos = 0;
+
+    Map<String, Byte> reversedExprs = new HashMap<String, Byte>();
+    HashMap<Byte, List<ExprNodeDesc>> exprMap = new HashMap<Byte, List<ExprNodeDesc>>();
+    Map<String, ExprNodeDesc> colExprMap = new HashMap<String, ExprNodeDesc>();
+    HashMap<Integer, Set<String>> posToAliasMap = new HashMap<Integer, Set<String>>();
+    HashMap<Byte, List<ExprNodeDesc>> filterMap =
+      new HashMap<Byte, List<ExprNodeDesc>>();
+
+    for (int pos = 0; pos < right.length; ++pos) {}
+    return null ;
+
+  }
+
   private Operator genJoinOperatorChildren(QBJoinTree join, Operator left,
       Operator[] right, HashSet<Integer> omitOpts) throws SemanticException {
 
@@ -7511,9 +7537,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   // BFS of the Parse Tree
   private ASTNode findJOIN(ASTNode n){
     Queue <ASTNode> q = new LinkedList<ASTNode>();
-    q.add(n);
     ASTNode res =null;
     ASTNode child =null;
+
+    if (null != n) {
+      q.add(n);
+    }
+
     while (!q.isEmpty()){
       child = q.poll();
       if (isJoinToken(child))
@@ -7531,15 +7561,17 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   // BFS of the Parse Tree
-  private ASTNode findWHERE(ASTNode n){
+  private ASTNode findToken(ASTNode n, final int TOK_TYPE){
     Queue <ASTNode> q = new LinkedList<ASTNode>();
-    q.add(n);
     ASTNode child =null;
     ASTNode res =null;
+    if (null != n) {
+      q.add(n);
+    }
 
     while (!q.isEmpty()){
       child = q.poll();
-      if (child.getToken().getType()==HiveParser.TOK_WHERE)
+      if (child.getToken().getType()==TOK_TYPE)
       {
         res = child;
         break;
@@ -7550,41 +7582,75 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         q.add((ASTNode)child.getChild(child_pos));
       }
     }
-    return child;
+    return res;
   }
+//BFS of the Parse Tree
+ private List<ASTNode> findTokens(ASTNode n, final int TOK_TYPE){
+   Queue <ASTNode> q = new LinkedList<ASTNode>();
+   ASTNode child =null;
+   List <ASTNode> res =new ArrayList<ASTNode>();
+   if (null != n) {
+     q.add(n);
+   }
 
-  // BFS of the Parse Tree
-  private ASTNode findINSERT(ASTNode n){
-    Queue <ASTNode> q = new LinkedList<ASTNode>();
-    q.add(n);
-    ASTNode child =null;
-    ASTNode res =null;
-
-    while (!q.isEmpty()){
-      child = q.poll();
-      if (child.getToken().getType()==HiveParser.TOK_INSERT)
-      {
-        res = child;
-        break;
-      }
-
-      int child_count = child.getChildCount();
-      for (int child_pos = 0; child_pos < child_count; ++child_pos) {
-        q.add((ASTNode)child.getChild(child_pos));
-      }
+   while (!q.isEmpty()){
+     child = q.poll();
+     if (child.getToken().getType()==TOK_TYPE) {
+      res.add(child);
     }
-    return child;
-  }
+
+     int child_count = child.getChildCount();
+     for (int child_pos = 0; child_pos < child_count; ++child_pos) {
+       q.add((ASTNode)child.getChild(child_pos));
+     }
+   }
+   return res;
+ }
 
   private boolean analyzeSpatial (ASTNode root){
     LOG.info("Starting Spatial Semantic Analysis");
+
+    ASTNode temp = null;
+    ASTNode insert = null ;
     ASTNode join =findJOIN(root);
-    ASTNode where =findWHERE(root);
-    ASTNode insert =findINSERT(root);
+    if (null == join || null == findToken(join,HiveParser.TOK_FUNCTION)) {
+      return false;
+    }
 
-    // TODO:
+   // LOG.info("Join Token Type: " + join.getChild(2).getType());
+   // LOG.info("Join Token Text: " + join.getChild(2).getText());
 
-    return false;
+    ASTNode where =findToken(root, HiveParser.TOK_WHERE);
+
+    // change where
+    if (null == where ) {
+      insert = findToken(root,HiveParser.TOK_INSERT);
+      where = new ASTNode(new CommonToken(HiveParser.TOK_WHERE, "TOK_WHERE"));
+      temp = (ASTNode) join.deleteChild(join.getChildCount()-1);
+      where.addChild(temp);
+      insert.addChild(where);
+    }
+    else {
+      // TODO: insert the spatial join condition as child of WHERE with an AND Node
+    }
+    // LOG.info("Where Token Type: " + where.getType());
+    // LOG.info("Where Text: " + where.getText());
+    // LOG.info("Where Child Count: " + where.getChildCount());
+
+    // change join
+    List<ASTNode> children = findTokens(temp,HiveParser.DOT);
+    ASTNode left  = children.get(0).dupTree();
+    ASTNode right = children.get(1).dupTree();
+    findToken(left,HiveParser.Identifier).getToken().setText("tile_id"); //this is definitly buggy
+    findToken(right,HiveParser.Identifier).getToken().setText("tile_id");     //this is definitly buggy
+
+    temp = new ASTNode(new CommonToken(HiveParser.EQUAL, "="));
+    temp.addChild(left);
+    temp.addChild(right);
+
+    join.addChild(temp);
+
+    return true;
   }
 
   @Override
@@ -7599,6 +7665,22 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     viewsExpanded = new ArrayList<String>();
 
     LOG.info("Starting Semantic Analysis");
+
+
+    // I just wanted to see the AST string here .
+    LOG.info("Tree Shape Before Spatial Analyze: "+child.dump());
+
+    // Massage the tree for Spatial Join
+    hasSpatialJoin = analyzeSpatial(child);
+    if (!hasSpatialJoin) {
+      LOG.info("No Spatial Stuff to Analyze");
+    } else {
+      LOG.info("Completed Spatial-Join Analysis");
+    }
+
+    // I want to see what I did to the tree
+    LOG.info("Tree Shape After Spatial Analyze: "+ child.dump());
+
 
     // analyze create table command
     if (ast.getToken().getType() == HiveParser.TOK_CREATETABLE) {
@@ -7633,17 +7715,6 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     getMetaData(qb);
     LOG.info("Completed getting MetaData in Semantic Analysis");
 
-    // I just wanted to see the AST string here .
-    LOG.info(child.dump());
-
-    // Massage the tree for Spatial Join
-    if (!analyzeSpatial(child)) {
-      LOG.info("No Spatial Stuff to Analyze");
-    }
-    LOG.info("Completed Spatial-Join Analysis");
-
-    // I want to see what I did to the tree
-    LOG.info(child.dump());
 
     // Save the result schema derived from the sink operator produced
     // by genPlan.  This has the correct column names, which clients
@@ -7673,7 +7744,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     Optimizer optm = new Optimizer();
     optm.setPctx(pCtx);
     optm.initialize(conf);
-    pCtx = optm.optimize();
+    // pCtx = optm.optimize();
     init(pCtx);
     qb = pCtx.getQB();
 
