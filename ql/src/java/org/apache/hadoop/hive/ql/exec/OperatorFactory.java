@@ -39,10 +39,10 @@ import org.apache.hadoop.hive.ql.plan.ReduceSinkDesc;
 import org.apache.hadoop.hive.ql.plan.SMBJoinDesc;
 import org.apache.hadoop.hive.ql.plan.ScriptDesc;
 import org.apache.hadoop.hive.ql.plan.SelectDesc;
+import org.apache.hadoop.hive.ql.plan.SpatialDesc;
 import org.apache.hadoop.hive.ql.plan.TableScanDesc;
 import org.apache.hadoop.hive.ql.plan.UDTFDesc;
 import org.apache.hadoop.hive.ql.plan.UnionDesc;
-
 /**
  * OperatorFactory.
  *
@@ -91,6 +91,9 @@ public final class OperatorFactory {
         HashTableDummyOperator.class));
     opvec.add(new OpTuple<HashTableSinkDesc>(HashTableSinkDesc.class,
         HashTableSinkOperator.class));
+
+    //ablimit
+    opvec.add(new OpTuple<SpatialDesc>(SpatialDesc.class, SpatialOperator.class));
   }
 
   public static <T extends Serializable> Operator<T> get(Class<T> opClass) {

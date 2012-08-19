@@ -150,6 +150,7 @@ import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.plan.ReduceSinkDesc;
 import org.apache.hadoop.hive.ql.plan.ScriptDesc;
 import org.apache.hadoop.hive.ql.plan.SelectDesc;
+import org.apache.hadoop.hive.ql.plan.SpatialDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
 import org.apache.hadoop.hive.ql.plan.TableScanDesc;
 import org.apache.hadoop.hive.ql.plan.UDTFDesc;
@@ -1956,7 +1957,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       throws SemanticException {
     String name;
 
-    if (node.getChildCount() == 0) {
+    if (node == null || node.getChildCount() == 0) {
       name = conf.getVar(HiveConf.ConfVars.HIVESCRIPTRECORDREADER);
     } else {
       name = unescapeSQLString(node.getChild(0).getText());
@@ -1984,11 +1985,12 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
   }
 
+
   private Class<? extends RecordWriter> getRecordWriter(ASTNode node)
       throws SemanticException {
     String name;
 
-    if (node.getChildCount() == 0) {
+    if (node == null || node.getChildCount() == 0) {
       name = conf.getVar(HiveConf.ConfVars.HIVESCRIPTRECORDWRITER);
     } else {
       name = unescapeSQLString(node.getChild(0).getText());
@@ -4906,25 +4908,120 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return output;
   }
 
-  private Operator genSPJoinOperatorChildren(QBJoinTree join, Operator left,
+  private Operator genSpatialJoinOperator(QBJoinTree join, Operator left,
       Operator[] right, HashSet<Integer> omitOpts) throws SemanticException {
 
+    // RESQUE prepration
+    String command =  "'/home/hduser/hivetest/join/dummy 2 2 '";//"/usr/bin/tee /tmp/output.txt - ";
+    TableDesc outInfo = null;
+    TableDesc [] inInfo = new TableDesc [right.length];
+    TableDesc errInfo;
+    String defaultSerdeName = conf.getVar(HiveConf.ConfVars.HIVESCRIPTSERDE);
+    LOG.info("RESQUE SerDe Class : " +defaultSerdeName);
+    Class<? extends Deserializer> serde;
+    try {
+      serde = (Class<? extends Deserializer>) Class.forName(defaultSerdeName,
+          true, JavaUtils.getClassLoader());
+    } catch (ClassNotFoundException e) {
+      throw new SemanticException(e);
+    }
+
+    // Error stream always uses the default serde with a single column
+    errInfo = PlanUtils.getTableDesc(serde, Integer.toString(Utilities.tabCode), "KEY");
+
+    // Output record readers
+    Class<? extends RecordReader> outRecordReader = getRecordReader(null);
+    Class<? extends RecordWriter> inRecordWriter  = getRecordWriter(null);//getTaggedRecordWriter();
+    Class<? extends RecordReader> errRecordReader = getDefaultRecordReader();
+
+
+    // Join Prepration
     RowResolver outputRS = new RowResolver();
-    ArrayList<String> outputColumnNames = new ArrayList<String>();
-    // all children are base classes
     Operator<?>[] rightOps = new Operator[right.length];
     int outputPos = 0;
 
-    Map<String, Byte> reversedExprs = new HashMap<String, Byte>();
-    HashMap<Byte, List<ExprNodeDesc>> exprMap = new HashMap<Byte, List<ExprNodeDesc>>();
-    Map<String, ExprNodeDesc> colExprMap = new HashMap<String, ExprNodeDesc>();
-    HashMap<Integer, Set<String>> posToAliasMap = new HashMap<Integer, Set<String>>();
-    HashMap<Byte, List<ExprNodeDesc>> filterMap =
-      new HashMap<Byte, List<ExprNodeDesc>>();
+    for (int pos = 0; pos < right.length; ++pos) {
+      Operator input = right[pos];
+      assert (input != null);
 
-    for (int pos = 0; pos < right.length; ++pos) {}
-    return null ;
+      Byte tag = Byte.valueOf((byte) (((ReduceSinkDesc) (input.getConf())).getTag()));
 
+      // prepare output descriptors for the input opt
+      RowResolver inputRS = opParseCtx.get(input).getRowResolver();
+
+      LOG.info("RESQUE Operator [ " + pos + " ] table size = " + inputRS.getTableNames().size());
+
+      Iterator<String> keysIter = inputRS.getTableNames().iterator();
+
+      while (keysIter.hasNext()) { // for each table
+        String key = keysIter.next();
+        HashMap<String, ColumnInfo> map = inputRS.getFieldMap(key);
+        Iterator<String> fNamesIter = map.keySet().iterator();
+        while (fNamesIter.hasNext()) { // for each column
+          String field = fNamesIter.next();
+          ColumnInfo valueInfo = inputRS.get(key, field);
+
+          if (outputRS.get(key, field) == null) {
+            String colName = getColumnInternalName(outputPos);
+            outputPos++;
+            outputRS.put(key, field, new ColumnInfo(colName, valueInfo
+                .getType(), key, valueInfo.getIsVirtualCol(), valueInfo
+                .isHiddenVirtualCol()));
+          }
+        }
+      }
+
+      rightOps[pos] = input;
+
+      StringBuilder inpColumns = new StringBuilder();
+      StringBuilder inpColumnTypes = new StringBuilder();
+      ArrayList<ColumnInfo> inputSchema = inputRS.getColumnInfos();
+      for (int i = 0; i < inputSchema.size(); ++i) {
+        if (i != 0) {
+          inpColumns.append(",");
+          inpColumnTypes.append(",");
+        }
+
+        inpColumns.append(inputSchema.get(i).getInternalName());
+        inpColumnTypes.append(inputSchema.get(i).getType().getTypeName());
+      }
+
+      LOG.info("RESQUE Input Columns: "+inpColumns.toString());
+
+      inInfo[pos] = PlanUtils.getTableDesc(serde, Integer
+          .toString(Utilities.tabCode), inpColumns.toString(), inpColumnTypes
+          .toString(), false, false);
+
+    }
+
+    StringBuilder outColumns = new StringBuilder();
+    StringBuilder outColumnTypes = new StringBuilder();
+    ArrayList<ColumnInfo> inputSchema = outputRS.getColumnInfos();
+    for (int i = 0; i < inputSchema.size(); ++i) {
+      if (i != 0) {
+        outColumns.append(",");
+        outColumnTypes.append(",");
+      }
+
+      outColumns.append(inputSchema.get(i).getInternalName());
+      outColumnTypes.append(inputSchema.get(i).getType().getTypeName());
+    }
+
+    outInfo = PlanUtils.getTableDesc(serde, Integer
+        .toString(Utilities.tabCode), outColumns.toString(), outColumnTypes
+        .toString(), false);
+
+
+    SpatialDesc desc = new SpatialDesc(
+        fetchFilesNotInLocalFilesystem(stripQuotes(command)),
+        inInfo, inRecordWriter, outInfo, outRecordReader, errRecordReader, errInfo);
+    Operator output = putOpInsertMap(
+        OperatorFactory.getAndMakeChild(
+            desc,new RowSchema(outputRS.getColumnInfos()), right),
+            outputRS);
+
+
+    return output;
   }
 
   private Operator genJoinOperatorChildren(QBJoinTree join, Operator left,
@@ -5140,11 +5237,19 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // Type checking and implicit type conversion for join keys
     genJoinOperatorTypeCheck(joinSrcOp, srcOps);
-
+    //hasSpatialJoin =false;
+    if (hasSpatialJoin)
+    {
+      Operator sop = genSpatialJoinOperator(joinTree,joinSrcOp, srcOps, omitOpts);
+      return sop;
+    }
+    else {
     JoinOperator joinOp = (JoinOperator) genJoinOperatorChildren(joinTree,
         joinSrcOp, srcOps, omitOpts);
+
     joinContext.put(joinOp, joinTree);
     return joinOp;
+    }
   }
 
   /**
@@ -7628,7 +7733,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       where = new ASTNode(new CommonToken(HiveParser.TOK_WHERE, "TOK_WHERE"));
       temp = (ASTNode) join.deleteChild(join.getChildCount()-1);
       where.addChild(temp);
-      insert.addChild(where);
+      //insert.addChild(where);
     }
     else {
       // TODO: insert the spatial join condition as child of WHERE with an AND Node
@@ -7639,8 +7744,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // change join
     List<ASTNode> children = findTokens(temp,HiveParser.DOT);
-    ASTNode left  = children.get(0).dupTree();
-    ASTNode right = children.get(1).dupTree();
+    ASTNode left  =  children.remove(0);
+    ASTNode right =  children.remove(0);
     findToken(left,HiveParser.Identifier).getToken().setText("tile_id"); //this is definitly buggy
     findToken(right,HiveParser.Identifier).getToken().setText("tile_id");     //this is definitly buggy
 
