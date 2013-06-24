@@ -1,0 +1,1 @@
+oligoastroIII.2_40x_20x_NS-MORPH_1| 1 | overlap: 693562 | union: 1.02612e+06 | distance: 10121.9 | ratio: 0.675911

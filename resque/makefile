@@ -3,6 +3,6 @@ dir=/home/aaji/softs/boost
 all: join
     
 join: joiner.cpp
-	g++ -m64 -O3 joiner.cpp -o dummy
+	g++ -m64 -O2 joiner.cpp -o dummy
 clean:
 	rm -f reducer
