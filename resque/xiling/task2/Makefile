@@ -1,7 +1,3 @@
-
-boost=/home/aaji/softs/boost
-spatial=/home/aaji/softs
-
 UNAME		= $(shell uname)
 OPTFLAGS	= -O3
 INCBASE		= -I.
@@ -12,8 +8,8 @@ ifneq (,$(findstring emory,$(shell uname -a)))
     LIBS = -L$(boost)/lib -L$(spatial)/lib
 else 
     ifeq ($(UNAME), Darwin)
-    INCFLAGS = -I /Library/Frameworks/GEOS.framework/Headers
-    LIBS = -L /Library/Frameworks/GEOS.framework/unix/lib
+    INCFLAGS = -I /usr/local/include/
+    LIBS = -L /usr/local/lib/
 endif
 endif
 
