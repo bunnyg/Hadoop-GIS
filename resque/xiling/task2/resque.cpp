@@ -77,9 +77,9 @@ int main(int argc, char** argv)
 	    return 0;
     }
 
-    cout << "argv[1] = " << argv[1] << endl;
-    cout << "argv[2] = " << argv[2] << endl;
-    cout << "argv[3] = " << argv[3] << endl;
+    //cout << "argv[1] = " << argv[1] << endl;
+    //cout << "argv[2] = " << argv[2] << endl;
+    //cout << "argv[3] = " << argv[3] << endl;
 
     shape_idx_1 = strtol(argv[2], NULL, 10);
     shape_idx_2 = strtol(argv[3], NULL, 10);
@@ -209,7 +209,7 @@ bool readSpatialInputGEOS()
             poly = wkt_reader->read(fields[shape_idx_2]);
         }
         else {
-            cout << "wrong database id : " << database_id << endl;       
+            cerr << "wrong database id : " << database_id << endl;       
             return false;
         }
 
@@ -217,8 +217,6 @@ bool readSpatialInputGEOS()
 
         fields.clear();
         cerr.flush();
-
-        // cout << endl;
     }
 
     // cerr << "polydata size = " << polydata.size() << endl;
@@ -276,7 +274,8 @@ bool join_intersects()
                     const Envelope * env2 = geom2->getEnvelopeInternal();
 
                     if (env1->intersects(env2) && geom1->intersects(geom2)) {
-                        cout << i << " of poly_set_one intersects " << j << " of poly_set_two" << endl; 
+                        cout << *geom1 << " of poly_set_one intersects " << geom2 << " of poly_set_two" << endl; 
+                        //cout << i << " of poly_set_one intersects " << j << " of poly_set_two" << endl; 
                         if (flag == false) {
                             flag = true;
                         }

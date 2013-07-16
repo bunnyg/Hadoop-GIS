@@ -1,11 +1,6 @@
 #! /bin/bash
 
-#if [ ! $# == 1 ]; then
-#    echo "Usage: $0 [log_id]"
-#    exit 0
-#fi
-
-make -f Makefile
+make -f makefile
 
 hdfsoutdir=/user/hixiaoxi/task2/output
 
