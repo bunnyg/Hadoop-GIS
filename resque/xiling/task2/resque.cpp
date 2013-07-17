@@ -12,6 +12,7 @@
 #include <geos/geom/Geometry.h>
 #include <geos/geom/Point.h>
 #include <geos/io/WKTReader.h>
+#include <geos/io/WKTWriter.h>
 #include <geos/opBuffer.h>
 
 #include <spatialindex/SpatialIndex.h>
@@ -40,8 +41,11 @@ using namespace geos::operation::buffer;
 #define DATABASE_ID_TWO 2
 
 // data type declaration 
-typedef map<string, map<int, vector<Geometry*> > > polymap;
+typedef map<string, map<int, Geometry*> > polymap;
+typedef map<string,map<int, string> > datamap;
+
 polymap polydata;
+datamap data;
 
 const string bar= "|";
 const string tab = "\t";
@@ -50,6 +54,9 @@ const string sep =  "\x02"; // ctrl+a
 
 
 // data block 
+string TILE_ID_ONE = "oligoastroIII.2_40x_20x_NS-MORPH_1";
+string TILE_ID_TWO = "oligoastroIII.2_40x_20x_NS-MORPH_2";
+
 int PREDICATE = 0;
 int shape_idx_1 = -1;
 int shape_idx_2 = -1;
@@ -68,7 +75,6 @@ bool join_dwithin();
 bool join_within();
 bool join_overlaps();
 bool cleanup();
-
 
 int main(int argc, char** argv)
 {
@@ -173,6 +179,7 @@ bool readSpatialInputGEOS()
     vector<string> fields;
 
     int database_id = 0;
+    int object_id = 0;
     size_t key_pos;
 
     GeometryFactory *gf = new GeometryFactory(new PrecisionModel(),OSM_SRID);
@@ -183,22 +190,26 @@ bool readSpatialInputGEOS()
         // cerr << "input_line: " << input_line << endl;
         
         key_pos = input_line.find_first_of(tab);
-        // cout << "key_pos = " << key_pos << endl;
+        // cerr << "key_pos = " << key_pos << endl;
 
         key = input_line.substr(0, key_pos);
-        // cout << "key = " << key << endl;
+        cerr << "key = " << key << endl;
 
         value = input_line.substr(key_pos+1) ;
         // cout << "value = " << value << endl;
 
         fields = split(value, tab);
-        // cout << "fields[0] = " << fields[0] << endl; 
-        // cout << "fields[1] = " << fields[1] << endl; 
+        cout << "fields[0] = " << fields[0] << endl; 
+        cout << "fields[1] = " << fields[1] << endl; 
         // cout << "fields[2] = " << fields[2] << endl; 
 
         // fiedls[0] is the database id
         database_id = atoi(fields[0].c_str());
-        // cout << "database_id = " << database_id << endl;
+        cout << "database_id = " << database_id << endl;
+        
+        // fiedls[1] is the object id
+        object_id = atoi(fields[1].c_str());
+        cout << "object_id = " << object_id << endl;
 
         // fiedls[shape_idx_1] is the polygon for the 1st input file 
         // fiedls[shape_idx_2] is the polygon for the 2nd input file 
@@ -213,9 +224,11 @@ bool readSpatialInputGEOS()
             return false;
         }
 
-        polydata[key][database_id].push_back(poly);
+        polydata[key][object_id] = poly;
+        data[key][object_id] = input_line;
 
         fields.clear();
+        cerr << endl;
         cerr.flush();
     }
 
@@ -248,41 +261,41 @@ bool join_intersects()
     bool flag = false; 
 
     string key;
+
     polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
     
     try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
+        int len = polydata.size();
 
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
 
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
+        cerr << "len1 = " << len1 << endl;
+        cerr << "len2 = " << len2 << endl;
 
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
 
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
 
-                    if (env1->intersects(env2) && geom1->intersects(geom2)) {
-                        cout << *geom1 << " of poly_set_one intersects " << geom2 << " of poly_set_two" << endl; 
-                        //cout << i << " of poly_set_one intersects " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
+                // data[key][object_id] = input_line;
+                if (env1->intersects(env2) && geom1->intersects(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
                     }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
     } // end of try
     catch (Tools::Exception& e) {
         std::cerr << "******ERROR******" << std::endl;
@@ -299,523 +312,14 @@ bool join_intersects()
     return success;
 }
 
-bool join_touches()
-{
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
 
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
-
-                    if (geom1->touches(geom2)) {
-                        cout << i << " of poly_set_one touches " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no touches in these two polygon sets." << endl;
-    }
-
-    success = true ;
-    return success;
-}
-
-bool join_crosses()
-{
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
-
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
-
-                    if (geom1->crosses(geom2)) {
-                        cout << i << " of poly_set_one crosses " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no crosses in these two polygon sets." << endl;
-    }
-    success = true ;
-    return success;
-}
-
-bool join_contains()
-{
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
-
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
-
-                    if (env1->contains(env2) && geom1->contains(geom2)) {
-                        cout << i << " of poly_set_one contains " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no contains in these two polygon sets." << endl;
-    }
-
-    success = true ;
-    return success;
-}
-
-bool join_adjacent()
-{
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
-
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
-
-                    if (!geom1->disjoint(geom2)) {
-                        cout << i << " of poly_set_one adjacent " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no adjacent in these two polygon sets." << endl;
-    }
-
-    success = true ;
-    return success;
-}
-
-bool join_disjoint()
-{
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
-
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
-
-                    if (geom1->disjoint(geom2)) {
-                        cout << i << " of poly_set_one disjoint " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no disjoint in these two polygon sets." << endl;
-    }
-
-    success = true ;
-    return success;
-}
-
-bool join_equals()
-{
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
-
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
-
-                    if (env1->equals(env2) && geom1->equals(geom2)) {
-                        cout << i << " of poly_set_one equals " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no equals in these two polygon sets." << endl;
-    }
-
-    success = true ;
-    return success;
-}
-
-bool join_dwithin() 
-{
-    double distance = 5.0;
-
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
-
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                BufferOp * buffer_op1 = new BufferOp(geom1);
-                const Geometry* geom_buffer1 = buffer_op1->getResultGeometry(distance);
-                const Envelope * env1 = geom_buffer1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    BufferOp * buffer_op2 = new BufferOp(geom2);
-                    const Geometry* geom_buffer2 = buffer_op2->getResultGeometry(distance);
-                    const Envelope * env2 = geom_buffer2->getEnvelopeInternal();
-
-                    if (env1->intersects(env2) && geom_buffer1->intersects(geom_buffer2)) {
-                        cout << i << " of poly_set_one dwithin " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no dwithin in these two polygon sets." << endl;
-    }
-
-    success = true ;
-    return success;
-}
-
-
-bool join_within()
-{
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
-
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
-
-                    if (geom1->within(geom2)) {
-                        cout << i << " of poly_set_one within " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no within in these two polygon sets." << endl;
-    }
-
-    success = true ;
-    return success;
-}
-
-bool join_overlaps()
-{
-    cout << "---------------------------------------------------" << endl;
-    bool success = false;
-    bool flag = false; 
-
-    string key;
-    polymap::iterator iter;
-    
-    try { 
-        // for each tile (key) in the input stream 
-        for (iter = polydata.begin(); iter != polydata.end(); iter++) {
-            key = iter->first;
-            // cerr << "key = " << key << endl;
-
-            map<int,vector<Geometry*> > & polygons = polydata[key];
-            // cout << "polygons size = " << polygons.size() << endl;
-
-            vector<Geometry*> poly_set_one = polygons[DATABASE_ID_ONE];
-            vector<Geometry*> poly_set_two = polygons[DATABASE_ID_TWO];
-
-            int len1 = poly_set_one.size();
-            int len2 = poly_set_two.size();
-
-            for (int i = 0; i < len1 ; i++) {
-                const Geometry* geom1 = poly_set_one[i];
-                const Envelope * env1 = geom1->getEnvelopeInternal();
-                
-                for (int j = 0; j < len2 ; j++) {
-                    const Geometry* geom2 = poly_set_two[j];
-                    const Envelope * env2 = geom2->getEnvelopeInternal();
-
-                    if (geom1->overlaps(geom2)) {
-                        cout << i << " of poly_set_one overlaps " << j << " of poly_set_two" << endl; 
-                        if (flag == false) {
-                            flag = true;
-                        }
-                    }
-                } // end of for (int j = 0; j < len2 ; j++) 
-            } // end of for (int i = 0; i < len1 ; i++) 	
-        } // end of for (iter = polydata.begin(); iter != polydata.end(); iter++)
-    } // end of try
-    catch (Tools::Exception& e) {
-        std::cerr << "******ERROR******" << std::endl;
-        std::string s = e.what();
-        std::cerr << s << std::endl;
-        return -1;
-    } // end of catch
-
-    if (flag == false) {
-        cout << "There is no overlaps in these two polygon sets." << endl;
-    }
-
-    success = true ;
-    return success;
-}
-
-bool cleanup()       { return true; }
+bool join_touches(){ return true; }
+bool join_crosses(){ return true; }
+bool join_contains(){ return true; }
+bool join_adjacent(){ return true; }
+bool join_disjoint(){ return true; }
+bool join_equals(){ return true; }
+bool join_dwithin(){ return true; }
+bool join_within(){ return true; }
+bool join_overlaps(){ return true; }
+bool cleanup(){ return true; }
