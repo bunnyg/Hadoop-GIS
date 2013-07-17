@@ -83,9 +83,9 @@ int main(int argc, char** argv)
 	    return 0;
     }
 
-    //cout << "argv[1] = " << argv[1] << endl;
-    //cout << "argv[2] = " << argv[2] << endl;
-    //cout << "argv[3] = " << argv[3] << endl;
+    //cerr << "argv[1] = " << argv[1] << endl;
+    //cerr << "argv[2] = " << argv[2] << endl;
+    //cerr << "argv[3] = " << argv[3] << endl;
 
     shape_idx_1 = strtol(argv[2], NULL, 10);
     shape_idx_2 = strtol(argv[3], NULL, 10);
@@ -193,23 +193,23 @@ bool readSpatialInputGEOS()
         // cerr << "key_pos = " << key_pos << endl;
 
         key = input_line.substr(0, key_pos);
-        cerr << "key = " << key << endl;
+        // cerr << "key = " << key << endl;
 
         value = input_line.substr(key_pos+1) ;
-        // cout << "value = " << value << endl;
+        // cerr << "value = " << value << endl;
 
         fields = split(value, tab);
-        cout << "fields[0] = " << fields[0] << endl; 
-        cout << "fields[1] = " << fields[1] << endl; 
-        // cout << "fields[2] = " << fields[2] << endl; 
+        // cerr << "fields[0] = " << fields[0] << endl; 
+        // cerr << "fields[1] = " << fields[1] << endl; 
+        // cerr << "fields[2] = " << fields[2] << endl; 
 
         // fiedls[0] is the database id
         database_id = atoi(fields[0].c_str());
-        cout << "database_id = " << database_id << endl;
+        // cerr << "database_id = " << database_id << endl;
         
         // fiedls[1] is the object id
         object_id = atoi(fields[1].c_str());
-        cout << "object_id = " << object_id << endl;
+        // cerr << "object_id = " << object_id << endl;
 
         // fiedls[shape_idx_1] is the polygon for the 1st input file 
         // fiedls[shape_idx_2] is the polygon for the 2nd input file 
@@ -228,7 +228,7 @@ bool readSpatialInputGEOS()
         data[key][object_id] = input_line;
 
         fields.clear();
-        cerr << endl;
+        // cerr << endl;
         cerr.flush();
     }
 
@@ -256,7 +256,7 @@ vector<string> split(string str, string separator)
 
 bool join_intersects() 
 {
-    cout << "---------------------------------------------------" << endl;
+    // cerr << "---------------------------------------------------" << endl;
     bool success = false;
     bool flag = false; 
 
@@ -275,8 +275,8 @@ bool join_intersects()
         int len1 = poly_set_one.size();
         int len2 = poly_set_two.size();
 
-        cerr << "len1 = " << len1 << endl;
-        cerr << "len2 = " << len2 << endl;
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
 
         // should use iterator, update later
         for (int i = 0; i < len1 ; i++) {
@@ -304,22 +304,564 @@ bool join_intersects()
         return -1;
     } // end of catch
 
+    /*
     if (flag == false) {
-        cout << "There is no intersection in these two polygon sets." << endl;
+        cerr << "There is no intersection in these two polygon sets." << endl;
     }
+    */
+
+    success = true ;
+    return success;
+}
+
+bool join_touches() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (geom1->touches(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
+
+    success = true ;
+    return success;
+}
+
+bool join_crosses() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (geom1->crosses(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
 
     success = true ;
     return success;
 }
 
 
-bool join_touches(){ return true; }
-bool join_crosses(){ return true; }
-bool join_contains(){ return true; }
-bool join_adjacent(){ return true; }
-bool join_disjoint(){ return true; }
-bool join_equals(){ return true; }
-bool join_dwithin(){ return true; }
-bool join_within(){ return true; }
-bool join_overlaps(){ return true; }
+bool join_contains() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (env1->contains(env2) && geom1->contains(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
+
+    success = true ;
+    return success;
+}
+
+
+bool join_adjacent() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (!geom1->disjoint(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
+
+    success = true ;
+    return success;
+}
+
+
+bool join_disjoint() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (geom1->disjoint(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
+
+    success = true ;
+    return success;
+}
+
+
+bool join_equals() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (env1->equals(env2) && geom1->equals(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
+
+    success = true ;
+    return success;
+}
+
+bool join_dwithin() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+    double distance = 5.0;
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            BufferOp * buffer_op1 = new BufferOp(geom1);
+            const Geometry* geom_buffer1 = buffer_op1->getResultGeometry(distance);
+            const Envelope * env1 = geom_buffer1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                BufferOp * buffer_op2 = new BufferOp(geom2);
+                const Geometry* geom_buffer2 = buffer_op2->getResultGeometry(distance);
+                const Envelope * env2 = geom_buffer2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (env1->intersects(env2) && geom_buffer1->intersects(geom_buffer2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
+
+    success = true ;
+    return success;
+}
+
+bool join_within() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (geom1->within(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
+
+    success = true ;
+    return success;
+}
+
+
+bool join_overlaps() 
+{
+    // cerr << "---------------------------------------------------" << endl;
+    bool success = false;
+    bool flag = false; 
+
+    string key;
+
+    polymap::iterator iter;
+
+    // for each tile (key) in the input stream 
+    // #define TILE_ID_ONE oligoastroIII.2_40x_20x_NS-MORPH_1
+    map<int, Geometry*> poly_set_one = polydata[TILE_ID_ONE];
+    map<int, Geometry*> poly_set_two = polydata[TILE_ID_TWO];
+    
+    try { 
+        int len = polydata.size();
+
+        int len1 = poly_set_one.size();
+        int len2 = poly_set_two.size();
+
+        // cerr << "len1 = " << len1 << endl;
+        // cerr << "len2 = " << len2 << endl;
+
+        // should use iterator, update later
+        for (int i = 0; i < len1 ; i++) {
+            const Geometry* geom1 = poly_set_one[i];
+            const Envelope * env1 = geom1->getEnvelopeInternal();
+
+            for (int j = 0; j < len2 ; j++) {
+                const Geometry* geom2 = poly_set_two[j];
+                const Envelope * env2 = geom2->getEnvelopeInternal();
+
+                // data[key][object_id] = input_line;
+                if (geom1->overlaps(geom2)) {
+                    cout << data[TILE_ID_ONE][i] << sep << data[TILE_ID_TWO][j] << endl; 
+                    if (flag == false) {
+                        flag = true;
+                    }
+                }
+            } // end of for (int j = 0; j < len2 ; j++) 
+        } // end of for (int i = 0; i < len1 ; i++) 	
+    } // end of try
+    catch (Tools::Exception& e) {
+        std::cerr << "******ERROR******" << std::endl;
+        std::string s = e.what();
+        std::cerr << s << std::endl;
+        return -1;
+    } // end of catch
+
+    /*
+    if (flag == false) {
+        cerr << "There is no intersection in these two polygon sets." << endl;
+    }
+    */
+
+    success = true ;
+    return success;
+}
+
 bool cleanup(){ return true; }
