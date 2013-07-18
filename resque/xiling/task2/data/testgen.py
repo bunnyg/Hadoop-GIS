@@ -1,4 +1,5 @@
-#! /home/aaji/softs/bin/python
+#! /usr/bin/python
+
 
 import sys
 import math
@@ -22,12 +23,11 @@ def main():
 	sys.exit(0)
     did = sys.argv[1].strip()
 
-    oid = 0 
+    oid = 1 
     for line in sys.stdin:
 	sp =line.strip().split("\t")
 	tile_id = sp[0].split("_")
-	#del tile_id[-1]
-	tile_id[-1] = "2"
+	del tile_id[-1]
 	tile_id = "_".join(tile_id)
 
 	print "\t".join((tile_id,did, str(oid),"\t".join(genfields()),sp[-1]))
