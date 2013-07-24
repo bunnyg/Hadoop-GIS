@@ -18,6 +18,9 @@
 // spatial index
 #include <spatialindex/SpatialIndex.h>
 
+// libhdfs
+#include "hdfs.h"
+
 using namespace std;
 using namespace geos;
 using namespace geos::io;
@@ -87,6 +90,34 @@ int main(int argc, char** argv)
 
 bool readQueryPolygon(const char *query_polygon)
 {
+    hdfsFS fs = hdfsConnect("localhost:9000", 0);
+
+    if(!fs) {
+        cerr << "Oops! Failed to connect to hdfs!" << endl;
+        return false;
+    }
+
+    hdfsFile readFile = hdfsOpenFile(fs, query_polygon, O_RDONLY, 0, 0, 0);
+    if (!readFile) {
+        cerr << "Failed to open " << query_polygon << "for writing" << endl;
+        return false;
+    }
+
+    char* buffer = (char*) malloc(sizeof(char) * 1024);
+    if(buffer == NULL) {
+        return false;
+    }
+
+    hdfsRead(fs, readFile, buffer, 1024);
+    cerr << buffer << endl;
+    cout << buffer << endl;
+
+    free(buffer);
+    hdfsCloseFile(fs, readFile);
+    hdfsDisconnect(fs);
+    return true;
+
+    /*
     ifstream query_polygon_in(query_polygon, ios::in);
 
     if (query_polygon_in == NULL) {
@@ -108,6 +139,7 @@ bool readQueryPolygon(const char *query_polygon)
     }
     cerr << "query_polygon_set size = " << query_polygon_set.size() << endl;
     return true;
+    */
 }
 
 bool filterByContains()

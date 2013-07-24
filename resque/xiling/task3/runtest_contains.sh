@@ -18,10 +18,10 @@ make -f makefile
 
 echo -n "TEST: Map Contains --- "
 
-export polygon_set="query_polygon.tsv"
-./map_contains ${dir}/query_polygon.tsv ${dir}/data1.tsv 9 > ${dir}/temp_output.tsv
+cat ${dir}/data1.tsv | ./map_contains ${dir}/query_polygon.tsv 9
 
 #cat ${dir}/new_test_1.tsv ${dir}/new_test_2.tsv | ./resque st_intersects 9 9 > ${dir}/intersects_resque_out.txt
+#./map_contains ${dir}/query_polygon.tsv ${dir}/data1.tsv 9 > ${dir}/temp_output.tsv
 
 #diff ${dir}/intersects_resque_out.txt ${dir}/intersects_psql_out.txt >/dev/null 2>&1
 

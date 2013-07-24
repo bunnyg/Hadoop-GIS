@@ -18,7 +18,8 @@ hadoop dfs -rmr ${hdfsoutdir}
 if [[ $predicate == intersects ]]
 then
     echo intersects
-    hadoop jar ${hadooppath}/contrib/streaming/hadoop-streaming-*.jar -mapper 'cat - ' -reducer 'resque st_intersects '${3}' '${4}'' -file /bin/cat -file ${enginepath} -input ${input} -output ${output} -verbose -cmdenv LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH -jobconf mapred.job.name="join_intersects"
+    #hadoop jar ${hadooppath}/contrib/streaming/hadoop-streaming-*.jar -mapper 'cat - ' -reducer 'resque st_intersects '${3}' '${4}'' -file /bin/cat -file ${enginepath} -input ${input} -output ${output} -verbose -cmdenv LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH -jobconf mapred.job.name="join_intersects"
+    hadoop jar /usr/local/hadoop-0.20.2/contrib/streaming/hadoop-streaming-*.jar -mapper 'cat - ' -reducer 'resque st_intersects '${3}' '${4}'' -file /bin/cat -file /Users/hixiaoxi/Documents/GitHub/hivesp/resque/xiling/task2/resque -input ${input} -output ${output} -verbose -cmdenv LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH -jobconf mapred.job.name="join_intersects" 
 elif [[ $predicate == touches ]]
 then
     echo touches 
