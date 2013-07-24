@@ -95,13 +95,19 @@ bool readQueryPolygon(string query_polygon)
         GeometryFactory *gf = new GeometryFactory(new PrecisionModel(), OSM_SRID);
         WKTReader *wkt_reader = new WKTReader(gf);
         Geometry *poly = NULL; 
+
+        vector<string> fields;
         string polygon_line;
 
-        // vector<Geometry*> query_polygon_set;
-            polygon_line = query_polygon;
+        fields = split(query_polygon, ";");
+
+        for (vector<string>::iterator iter = fields.begin(); iter != fields.end(); iter++) {
+            // vector<Geometry*> query_polygon_set;
+            polygon_line = *iter;
             //cerr << "polygon_line = " << polygon_line << endl;
             poly = wkt_reader->read(polygon_line);
             query_polygon_set.push_back(poly);
+        }
     }
     cerr << "query_polygon_set size = " << query_polygon_set.size() << endl;
     return true;
