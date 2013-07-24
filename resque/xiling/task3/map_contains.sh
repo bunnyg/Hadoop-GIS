@@ -14,3 +14,5 @@ index=${3}
 hadoop dfs -rmr ${hdfsoutdir}
 
 hadoop jar ${hadooppath}/contrib/streaming/hadoop-streaming-*.jar -mapper 'cat - ' -reducer 'map_contains "'"${query_polygon}"'" '${index}'' -file /bin/cat -file ${enginepath} -input ${input} -output ${hdfsoutdir} -verbose -cmdenv LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH -jobconf mapred.job.name="map_contains"
+
+make clean

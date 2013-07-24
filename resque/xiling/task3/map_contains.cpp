@@ -26,10 +26,6 @@ using namespace geos::operation::buffer;
 
 #define OSM_SRID 4326
 
-// Constants
-#define DATABASE_ID_ONE 1
-#define DATABASE_ID_TWO 2
-
 // data type declaration 
 typedef map<string, map<int, Geometry*> > polymap;
 typedef map<string,map<int, string> > datamap;
@@ -43,26 +39,20 @@ const string tab = "\t";
 const string comma = ",";
 const string sep =  "\x02"; // ctrl+a
 
-
-// data block 
-string TILE_ID_ONE = "oligoastroIII.2_40x_20x_NS-MORPH_1";
-string TILE_ID_TWO = "oligoastroIII.2_40x_20x_NS-MORPH_2";
-
-int PREDICATE = 0;
 int shape_idx_1 = -1;
 int shape_idx_2 = -1;
 
-bool readQueryPolygon(const char *query_polygon);
+bool readQueryPolygon(string query_polygon);
 bool filterByContains();
 
 vector<string> split(string str, string separator);
 
 int main(int argc, char** argv)
 {
-    cerr << endl;
-    cerr << "argv[0] = " << argv[0] << endl;
-    cerr << "argv[1] = " << argv[1] << endl;
-    cerr << "argv[2] = " << argv[2] << endl;
+    //cerr << endl;
+    //cerr << "argv[0] = " << argv[0] << endl;
+    //cerr << "argv[1] = " << argv[1] << endl;
+    //cerr << "argv[2] = " << argv[2] << endl;
 
     if (argc < 3) {
         cerr << "usage: map_contains polygon [shape_idx 1]" << endl;
@@ -71,9 +61,7 @@ int main(int argc, char** argv)
 
     shape_idx_1 = strtol(argv[2], NULL, 10);
 
-    const char *query_polygon = new char[1024];
-    query_polygon = argv[1];
-
+    string query_polygon = argv[1];
     if (!readQueryPolygon(query_polygon)) {
         return 1;
     }
@@ -85,11 +73,9 @@ int main(int argc, char** argv)
     return 0;
 }
 
-bool readQueryPolygon(const char *query_polygon)
-{
-    ifstream query_polygon_in(query_polygon, ios::in);
-
-    if (query_polygon_in == NULL) {
+bool readQueryPolygon(string query_polygon)
+{    
+    if (query_polygon == "") {
         cerr << "query polygon file is empty" << endl;
         return false;
     }
@@ -97,16 +83,20 @@ bool readQueryPolygon(const char *query_polygon)
         GeometryFactory *gf = new GeometryFactory(new PrecisionModel(), OSM_SRID);
         WKTReader *wkt_reader = new WKTReader(gf);
         Geometry *poly = NULL; 
+
+        vector<string> fields;
         string polygon_line;
 
-        // vector<Geometry*> query_polygon_set;
-        while (getline(query_polygon_in, polygon_line)) {
-             cerr << "polygon_line = " << polygon_line << endl;
+        fields = split(query_polygon, ";");
+
+        for (vector<string>::iterator iter = fields.begin(); iter != fields.end(); iter++) {
+            polygon_line = *iter;
+            //cerr << "polygon_line = " << polygon_line << endl;
             poly = wkt_reader->read(polygon_line);
             query_polygon_set.push_back(poly);
         }
     }
-    cerr << "query_polygon_set size = " << query_polygon_set.size() << endl;
+    //cerr << "query_polygon_set size = " << query_polygon_set.size() << endl;
     return true;
 }
 
@@ -119,31 +109,30 @@ bool filterByContains()
     WKTReader *wkt_reader = new WKTReader(gf);
     Geometry *poly = NULL; 
 
-    int index = 0;
-    // while (getline(data_in, input_line)) {
+    //int index = 0;
     while (cin && getline(cin, input_line) && !cin.eof()) {
         
         fields = split(input_line, tab);
 
-        cerr << "input_line: " << input_line << endl;
-        cerr << "fields size = " << fields.size() << endl;
-        cerr << "fields[0] = " << fields[0] << endl; 
-        cerr << "fields[1] = " << fields[1] << endl; 
-        cerr << "fields[2] = " << fields[2] << endl; 
+        //cerr << "input_line: " << input_line << endl;
+        //cerr << "fields size = " << fields.size() << endl;
+        //cerr << "fields[0] = " << fields[0] << endl; 
+        //cerr << "fields[1] = " << fields[1] << endl; 
+        //cerr << "fields[2] = " << fields[2] << endl; 
 
         poly = wkt_reader->read(fields[shape_idx_1+1]);
 
         for (vector<Geometry *>::iterator iter = query_polygon_set.begin(); iter != query_polygon_set.end(); iter++) {
             if ((*iter)->contains(poly)) {
                 cout << input_line << endl;
-                index++;
+                //index++;
                 break;
             }
         }
         fields.clear();
         cerr.flush();
     }
-    cerr << "index = " << index << endl;
+    //cerr << "index = " << index << endl;
     return true;
 }
 
