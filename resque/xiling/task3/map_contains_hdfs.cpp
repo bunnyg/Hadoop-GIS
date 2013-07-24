@@ -18,9 +18,6 @@
 // spatial index
 #include <spatialindex/SpatialIndex.h>
 
-// libhdfs
-#include "hdfs.h"
-
 using namespace std;
 using namespace geos;
 using namespace geos::io;
@@ -55,7 +52,7 @@ int PREDICATE = 0;
 int shape_idx_1 = -1;
 int shape_idx_2 = -1;
 
-bool readQueryPolygon(const char *query_polygon);
+bool readQueryPolygon(string query_polygon);
 bool filterByContains();
 
 vector<string> split(string str, string separator);
@@ -74,8 +71,8 @@ int main(int argc, char** argv)
 
     shape_idx_1 = strtol(argv[2], NULL, 10);
 
-    const char *query_polygon = new char[1024];
-    query_polygon = argv[1];
+    // const char *query_polygon = new char[1024];
+    string query_polygon = argv[1];
 
     if (!readQueryPolygon(query_polygon)) {
         return 1;
@@ -88,39 +85,9 @@ int main(int argc, char** argv)
     return 0;
 }
 
-bool readQueryPolygon(const char *query_polygon)
-{
-    hdfsFS fs = hdfsConnect("localhost:9000", 0);
-
-    if(!fs) {
-        cerr << "Oops! Failed to connect to hdfs!" << endl;
-        return false;
-    }
-
-    hdfsFile readFile = hdfsOpenFile(fs, query_polygon, O_RDONLY, 0, 0, 0);
-    if (!readFile) {
-        cerr << "Failed to open " << query_polygon << "for writing" << endl;
-        return false;
-    }
-
-    char* buffer = (char*) malloc(sizeof(char) * 1024);
-    if(buffer == NULL) {
-        return false;
-    }
-
-    hdfsRead(fs, readFile, buffer, 1024);
-    cerr << buffer << endl;
-    cout << buffer << endl;
-
-    free(buffer);
-    hdfsCloseFile(fs, readFile);
-    hdfsDisconnect(fs);
-    return true;
-
-    /*
-    ifstream query_polygon_in(query_polygon, ios::in);
-
-    if (query_polygon_in == NULL) {
+bool readQueryPolygon(string query_polygon)
+{    
+    if (query_polygon == "") {
         cerr << "query polygon file is empty" << endl;
         return false;
     }
@@ -131,19 +98,18 @@ bool readQueryPolygon(const char *query_polygon)
         string polygon_line;
 
         // vector<Geometry*> query_polygon_set;
-        while (getline(query_polygon_in, polygon_line)) {
-             cerr << "polygon_line = " << polygon_line << endl;
+            polygon_line = query_polygon;
+            //cerr << "polygon_line = " << polygon_line << endl;
             poly = wkt_reader->read(polygon_line);
             query_polygon_set.push_back(poly);
-        }
     }
     cerr << "query_polygon_set size = " << query_polygon_set.size() << endl;
     return true;
-    */
 }
 
 bool filterByContains()
 {
+    cerr << "------------------------------------" << endl;
     string input_line;
     vector<string> fields;
 
@@ -152,16 +118,15 @@ bool filterByContains()
     Geometry *poly = NULL; 
 
     int index = 0;
-    // while (getline(data_in, input_line)) {
     while (cin && getline(cin, input_line) && !cin.eof()) {
         
         fields = split(input_line, tab);
 
-        cerr << "input_line: " << input_line << endl;
-        cerr << "fields size = " << fields.size() << endl;
-        cerr << "fields[0] = " << fields[0] << endl; 
-        cerr << "fields[1] = " << fields[1] << endl; 
-        cerr << "fields[2] = " << fields[2] << endl; 
+        //cerr << "input_line: " << input_line << endl;
+        //cerr << "fields size = " << fields.size() << endl;
+        //cerr << "fields[0] = " << fields[0] << endl; 
+        //cerr << "fields[1] = " << fields[1] << endl; 
+        //cerr << "fields[2] = " << fields[2] << endl; 
 
         poly = wkt_reader->read(fields[shape_idx_1+1]);
 
