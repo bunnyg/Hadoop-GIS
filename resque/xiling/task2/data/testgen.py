@@ -23,11 +23,12 @@ def main():
 	sys.exit(0)
     did = sys.argv[1].strip()
 
-    oid = 1 
+    oid = 0 
     for line in sys.stdin:
 	sp =line.strip().split("\t")
 	tile_id = sp[0].split("_")
-	del tile_id[-1]
+	#del tile_id[-1]
+	tile_id[-1] = "2"
 	tile_id = "_".join(tile_id)
 
 	print "\t".join((tile_id,did, str(oid),"\t".join(genfields()),sp[-1]))

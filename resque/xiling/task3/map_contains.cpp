@@ -65,7 +65,7 @@ int main(int argc, char** argv)
     if (!readQueryPolygon(query_polygon)) {
         return 1;
     }
-    
+
     if (!filterByContains()) {
 	    return 1;
     }
@@ -91,8 +91,10 @@ bool readQueryPolygon(string query_polygon)
 
         for (vector<string>::iterator iter = fields.begin(); iter != fields.end(); iter++) {
             polygon_line = *iter;
+
             //cerr << "polygon_line = " << polygon_line << endl;
             poly = wkt_reader->read(polygon_line);
+
             query_polygon_set.push_back(poly);
         }
     }

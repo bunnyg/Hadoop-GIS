@@ -185,6 +185,8 @@ import org.apache.hadoop.mapred.InputFormat;
 
 public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   private boolean hasSpatialJoin ;
+  // gobal variable for type of predicate, intersects or contains or something else?
+  private String spatialJoinType;
 
   private HashMap<TableScanOperator, ExprNodeDesc> opToPartPruner;
   private HashMap<TableScanOperator, PrunedPartitionList> opToPartList;
@@ -4912,12 +4914,13 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       Operator[] right, HashSet<Integer> omitOpts) throws SemanticException {
 
     // RESQUE prepration
-    String command =  "'/home/hduser/hivetest/join/dummy 2 2 '";//"/usr/bin/tee /tmp/output.txt - ";
+    // String command =  "'/Users/hixiaoxi/Documents/GitHub/hivesp/resque/dummy 2 2 '";//"/usr/bin/tee /tmp/output.txt - ";
+    String command =  "'/Users/hixiaoxi/Documents/GitHub/hivesp/resque/xiling/task4/resque '" + spatialJoinType + "' 10 10'";
     TableDesc outInfo = null;
     TableDesc [] inInfo = new TableDesc [right.length];
     TableDesc errInfo;
     String defaultSerdeName = conf.getVar(HiveConf.ConfVars.HIVESCRIPTSERDE);
-    LOG.info("RESQUE SerDe Class : " +defaultSerdeName);
+    LOG.info("RESQUE SerDe Class : " + defaultSerdeName);
     Class<? extends Deserializer> serde;
     try {
       serde = (Class<? extends Deserializer>) Class.forName(defaultSerdeName,
@@ -7640,19 +7643,22 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   // BFS of the Parse Tree
-  private ASTNode findJOIN(ASTNode n){
+  // 7779 ASTNode join = findJOIN(root);
+  private ASTNode findJOIN(ASTNode n) {
     Queue <ASTNode> q = new LinkedList<ASTNode>();
-    ASTNode res =null;
-    ASTNode child =null;
+    ASTNode res = null;
+    ASTNode child = null;
 
     if (null != n) {
       q.add(n);
     }
 
+    // BFS the Parse Tree
     while (!q.isEmpty()){
       child = q.poll();
-      if (isJoinToken(child))
-      {
+
+      // found the JOIN Token, return this child node
+      if (isJoinToken(child)) {
         res = child;
         break;
       }
@@ -7666,18 +7672,21 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   }
 
   // BFS of the Parse Tree
+  // if (null == join || null == findToken(join, HiveParser.TOK_FUNCTION)) {
   private ASTNode findToken(ASTNode n, final int TOK_TYPE){
     Queue <ASTNode> q = new LinkedList<ASTNode>();
     ASTNode child =null;
     ASTNode res =null;
+
     if (null != n) {
       q.add(n);
     }
 
     while (!q.isEmpty()){
       child = q.poll();
-      if (child.getToken().getType()==TOK_TYPE)
-      {
+
+      // found the wanted TOK_TYPE, return this child node
+      if (child.getToken().getType() == TOK_TYPE) {
         res = child;
         break;
       }
@@ -7689,48 +7698,111 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     }
     return res;
   }
-//BFS of the Parse Tree
- private List<ASTNode> findTokens(ASTNode n, final int TOK_TYPE){
-   Queue <ASTNode> q = new LinkedList<ASTNode>();
-   ASTNode child =null;
-   List <ASTNode> res =new ArrayList<ASTNode>();
-   if (null != n) {
-     q.add(n);
-   }
 
-   while (!q.isEmpty()){
-     child = q.poll();
-     if (child.getToken().getType()==TOK_TYPE) {
-      res.add(child);
+  //BFS of the Parse Tree
+  private List<ASTNode> findTokens(ASTNode n, final int TOK_TYPE){
+    Queue <ASTNode> q = new LinkedList<ASTNode>();
+    ASTNode child =null;
+    List <ASTNode> res =new ArrayList<ASTNode>();
+    if (null != n) {
+      q.add(n);
     }
 
-     int child_count = child.getChildCount();
-     for (int child_pos = 0; child_pos < child_count; ++child_pos) {
-       q.add((ASTNode)child.getChild(child_pos));
-     }
-   }
-   return res;
- }
+    while (!q.isEmpty()){
+      child = q.poll();
+       
+      if (child.getToken().getType()==TOK_TYPE) {
+        res.add(child);
+      }
 
-  private boolean analyzeSpatial (ASTNode root){
-    LOG.info("Starting Spatial Semantic Analysis");
+      int child_count = child.getChildCount();
+
+      for (int child_pos = 0; child_pos < child_count; ++child_pos) {
+        q.add((ASTNode)child.getChild(child_pos));
+      }
+    }
+    return res;
+  }
+
+  private void printParseTree(ASTNode n) {
+    LOG.info("---------------------------------------------------------------------------------");
+    Queue <ASTNode> q = new LinkedList<ASTNode>();
+    ASTNode res = null;
+    ASTNode child = null;
+
+    if (null != n) {
+      q.add(n);
+    }
+
+    // BFS the Parse Tree
+    while (!q.isEmpty()){
+      child = q.poll();
+      LOG.info("new point: " + child.getType() + "  " + child.getText() + ": ");
+
+      int child_count = child.getChildCount();
+      for (int child_pos = 0; child_pos < child_count; ++child_pos) {
+        res = (ASTNode)child.getChild(child_pos);
+        q.add(res);
+        // q.add((ASTNode)child.getChild(child_pos));
+        LOG.info(res.getType() + "  " + res.getText() + "; ");
+      }
+      LOG.info("\n");
+    }
+    LOG.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+  }
+
+  // analyze the spatial token
+  // return true or false
+  private boolean analyzeSpatial(ASTNode root){
+    LOG.info("7727 Starting Spatial Semantic Analysis");
+
+    printParseTree(root);
 
     ASTNode temp = null;
     ASTNode insert = null ;
-    ASTNode join =findJOIN(root);
-    if (null == join || null == findToken(join,HiveParser.TOK_FUNCTION)) {
+    ASTNode deleteNode = null ;
+    ASTNode predicate = null;
+
+    // find join in tree
+    ASTNode join = findJOIN(root);
+
+    // if there is no join, then return false
+    // if there is no TOK_FUNCTION, then return false
+    if (null == join || null == findToken(join, HiveParser.TOK_FUNCTION)) {
       return false;
     }
 
-   // LOG.info("Join Token Type: " + join.getChild(2).getType());
-   // LOG.info("Join Token Text: " + join.getChild(2).getText());
+    // public static final int TOK_JOIN = 59;
+    LOG.info("7741 Join Token Type: " + join.getType());
+    LOG.info("7742 Join Token Text: " + join.getText());
 
-    ASTNode where =findToken(root, HiveParser.TOK_WHERE);
+    LOG.info("7744 Join Child 2 Token Type: " + join.getChild(2).getType());
+    LOG.info("7745 Join Child 2 Token Text: " + join.getChild(2).getText());
 
+    ASTNode where = findToken(root, HiveParser.TOK_WHERE);
+
+    // private String spatialJoinType; defined in line 188
+    // store type of predicate into global variable spatialJoinType
     // change where
-    if (null == where ) {
-      insert = findToken(root,HiveParser.TOK_INSERT);
+    if (null == where) {
+      LOG.info("7752 null == where ");
+      insert = findToken(root, HiveParser.TOK_INSERT);
       where = new ASTNode(new CommonToken(HiveParser.TOK_WHERE, "TOK_WHERE"));
+      
+      
+      LOG.info("join child count: " + join.getChildCount());
+      deleteNode = (ASTNode)join.getChild(join.getChildCount()-1);
+      LOG.info("deleteNode type: " + deleteNode.getType() + " ; text: " + deleteNode.getText());
+
+      predicate = findToken(deleteNode, HiveParser.TOK_FUNCTION);
+
+      LOG.info("predicate type: " + predicate.getType() + "; text: " + predicate.getText());
+      LOG.info("predicate Child 0 type: " + predicate.getChild(0).getType() + "; text: " + predicate.getChild(0).getText());
+
+      spatialJoinType = predicate.getChild(0).getText();
+
+      LOG.info("spatialJoinType:  " + spatialJoinType);
+
       temp = (ASTNode) join.deleteChild(join.getChildCount()-1);
       where.addChild(temp);
       //insert.addChild(where);
@@ -7738,23 +7810,42 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     else {
       // TODO: insert the spatial join condition as child of WHERE with an AND Node
     }
-    // LOG.info("Where Token Type: " + where.getType());
-    // LOG.info("Where Text: " + where.getText());
-    // LOG.info("Where Child Count: " + where.getChildCount());
+    LOG.info("7760 where Token Type: " + where.getType());
+    LOG.info("7761 where Text: " + where.getText());
+    LOG.info("7762 where Child Count: " + where.getChildCount());
+
+    LOG.info("7794 after change where, where: " + where.dump());
+    LOG.info("7795 after change where, root: " + root.dump());
+
+    // printParseTree(root);
+
+    // (=(TOK_FUNCTION(Intersects)(.(TOK_TABLE_OR_COL(ta))(outline))(.(TOK_TABLE_OR_COL(tb))(outline)))(TRUE)))) 
+        
+    //    => (=(.(TOK_TABLE_OR_COL(ta))(tile_id))(.(TOK_TABLE_OR_COL(tb))(tile_id)))))
 
     // change join
-    List<ASTNode> children = findTokens(temp,HiveParser.DOT);
+    List<ASTNode> children = findTokens(temp, HiveParser.DOT);
+    LOG.info("DOT children size: " + children.size());
+
     ASTNode left  =  children.remove(0);
+    LOG.info("left type: " + left.getType() + "; text: " + left.getText());
+    LOG.info("left dump:" + left.dump());
+
     ASTNode right =  children.remove(0);
-    findToken(left,HiveParser.Identifier).getToken().setText("tile_id"); //this is definitly buggy
-    findToken(right,HiveParser.Identifier).getToken().setText("tile_id");     //this is definitly buggy
+    LOG.info("right type: " + right.getType() + "; text: " + right.getText());
+    LOG.info("right dump:" + right.dump());
+
+    findToken(left, HiveParser.Identifier).getToken().setText("tile_id");      //this is definitly buggy
+    findToken(right, HiveParser.Identifier).getToken().setText("tile_id");     //this is definitly buggy
 
     temp = new ASTNode(new CommonToken(HiveParser.EQUAL, "="));
     temp.addChild(left);
     temp.addChild(right);
 
     join.addChild(temp);
+    LOG.info("7811 after change join: " + root.dump());
 
+    // printParseTree(root);
     return true;
   }
 
@@ -7769,23 +7860,22 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     ASTNode child = ast;
     viewsExpanded = new ArrayList<String>();
 
-    LOG.info("Starting Semantic Analysis");
-
+    LOG.info("7772 Starting Semantic Analysis");
 
     // I just wanted to see the AST string here .
-    LOG.info("Tree Shape Before Spatial Analyze: "+child.dump());
+    LOG.info("7775 Tree Shape Before Spatial Analyze: "+ child.dump());
 
     // Massage the tree for Spatial Join
     hasSpatialJoin = analyzeSpatial(child);
+
     if (!hasSpatialJoin) {
-      LOG.info("No Spatial Stuff to Analyze");
+      LOG.info("7783 No Spatial Stuff to Analyze");
     } else {
-      LOG.info("Completed Spatial-Join Analysis");
+      LOG.info("7785 Completed Spatial-Join Analysis");
     }
 
     // I want to see what I did to the tree
     LOG.info("Tree Shape After Spatial Analyze: "+ child.dump());
-
 
     // analyze create table command
     if (ast.getToken().getType() == HiveParser.TOK_CREATETABLE) {
