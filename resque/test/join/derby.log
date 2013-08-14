@@ -1,6 +1,6 @@
 ----------------------------------------------------------------
-2013-07-31 06:04:33.537 GMT:
- Booting Derby version The Apache Software Foundation - Apache Derby - 10.4.2.0 - (689064): instance a816c00e-0140-3353-ec55-000004883a70
+2013-08-14 01:08:19.514 GMT:
+ Booting Derby version The Apache Software Foundation - Apache Derby - 10.4.2.0 - (689064): instance a816c00e-0140-7a5d-be24-000004acd060
 on database directory /Users/hixiaoxi/Documents/GitHub/hivesp/resque/test/join/metastore_db  
 
 Database Class Loader started - derby.database.classpath=''
