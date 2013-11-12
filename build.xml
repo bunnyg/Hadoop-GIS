@@ -517,7 +517,7 @@
     <copy todir="${target.example.dir}/test-plugin">
       <fileset dir="${hive.root}/pdk/test-plugin"/>
     </copy>
-    <copy file="${basedir}/README.txt" todir="${target.dir}">
+    <copy file="${basedir}/README.md" todir="${target.dir}">
       <filterset>
         <filter token="VERSION" value="${version}"/>
       </filterset>
@@ -591,7 +591,7 @@
     </pathconvert>
     <copy todir="." overwrite="true">
       <fileset dir="eclipse-templates">
-        <exclude name="**/README.txt"/>
+        <exclude name="**/README.md"/>
         <exclude name="${vcs.excludes}"/>
       </fileset>
       <filterset>

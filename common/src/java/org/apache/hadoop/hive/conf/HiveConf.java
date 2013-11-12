@@ -377,6 +377,9 @@ public class HiveConf extends Configuration {
     HIVEMAPAGGRHASHMINREDUCTION("hive.map.aggr.hash.min.reduction", (float) 0.5),
     HIVEMULTIGROUPBYSINGLEREDUCER("hive.multigroupby.singlereducer", true),
 
+    // for spatial query support
+    HIVESPATIALPATH("hive.spatial.path", "/usr/bin/resque"),
+
     // for hive udtf operator
     HIVEUDTFAUTOPROGRESS("hive.udtf.auto.progress", false),
 

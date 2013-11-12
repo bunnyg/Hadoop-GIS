@@ -4915,7 +4915,8 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     // RESQUE prepration
     // String command =  "'/Users/hixiaoxi/Documents/GitHub/hivesp/resque/dummy 2 2 '";//"/usr/bin/tee /tmp/output.txt - ";
-    String command =  "'/Users/hixiaoxi/Documents/GitHub/hivesp/resque/xiling/task4/resque '" + spatialJoinType + "' 10 10'";
+    // String command =  "'/Users/hixiaoxi/Documents/GitHub/hivesp/resque/xiling/task4/resque '" + spatialJoinType + "' 10 10'";
+    String command = "'" + conf.getVar(HiveConf.ConfVars.HIVESPATIALPATH) + " '" +spatialJoinType + "' 10 10'";
     TableDesc outInfo = null;
     TableDesc [] inInfo = new TableDesc [right.length];
     TableDesc errInfo;
@@ -7860,22 +7861,21 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     ASTNode child = ast;
     viewsExpanded = new ArrayList<String>();
 
-    LOG.info("7772 Starting Semantic Analysis");
-
     // I just wanted to see the AST string here .
-    LOG.info("7775 Tree Shape Before Spatial Analyze: "+ child.dump());
+    LOG.info("7865 Tree Shape Before Spatial Analyze: "+ child.dump());
 
     // Massage the tree for Spatial Join
     hasSpatialJoin = analyzeSpatial(child);
 
     if (!hasSpatialJoin) {
-      LOG.info("7783 No Spatial Stuff to Analyze");
+      LOG.info("7871 No Spatial Stuff to Analyze");
     } else {
-      LOG.info("7785 Completed Spatial-Join Analysis");
+      LOG.info("7873 Completed Spatial-Join Analysis");
     }
 
     // I want to see what I did to the tree
     LOG.info("Tree Shape After Spatial Analyze: "+ child.dump());
+    LOG.info("7878 ast.getToken().getType():" + ast.getToken().getType());
 
     // analyze create table command
     if (ast.getToken().getType() == HiveParser.TOK_CREATETABLE) {
